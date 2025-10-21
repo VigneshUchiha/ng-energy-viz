@@ -1,4 +1,4 @@
-# Complete analysis and visualization for Nigerian Energy Dataset
+# Analysis and visualization for Nigerian Energy Dataset
 # Performs data cleaning, EDA, and comprehensive plotting
 
 import pandas as pd
