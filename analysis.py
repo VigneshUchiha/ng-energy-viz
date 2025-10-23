@@ -1,166 +1,388 @@
-# Analysis and visualization for Nigerian Energy Dataset
-# Performs data cleaning, EDA, and comprehensive plotting
-
-import pandas as pd
-import numpy as np
-import seaborn as sns
+"""
+Statistics and trends assignment for Nigerian Energy Dataset.
+Analyzes carbon footprint and energy generation data.
+PEP-8 compliant with complete documentation.
+"""
+from corner import corner
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.stats as ss
+import seaborn as sns
 
-# Step 1: Load and Clean Data
-print("Loading data...")
-df_ng_energy = pd.read_csv('nigerian_energy_and_utilities_carbon_footprint.csv', encoding='ascii')
 
-print("Cleaning and transforming data...")
-df_ed = df_ng_energy.copy()
-df_ed['timestamp'] = pd.to_datetime(df_ed['timestamp'], errors='coerce')
+def plot_relational_plot(df):
+    """
+    Create a line plot showing CO2 intensity trend over time.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Cleaned dataframe with energy data
+        
+    Returns
+    -------
+    None
+        Saves plot to 'relational_plot.png'
+    """
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Calculate daily median CO2 intensity
+    df_sorted = df.sort_values('timestamp')
+    df_daily = df_sorted.set_index('timestamp').resample('D')[
+        'co2_g_per_kwh'
+    ].median().dropna().reset_index()
+    
+    # Create line plot
+    sns.lineplot(
+        data=df_daily,
+        x='timestamp',
+        y='co2_g_per_kwh',
+        color='#e15759',
+        linewidth=2,
+        ax=ax
+    )
+    
+    ax.set_title('Daily Median CO2 Intensity Over Time',
+                 fontsize=14, fontweight='bold')
+    ax.set_xlabel('Date', fontsize=12)
+    ax.set_ylabel('CO2 Intensity (g/kWh)', fontsize=12)
+    ax.grid(True, alpha=0.3, linestyle='--')
+    
+    plt.tight_layout()
+    plt.savefig('relational_plot.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    return
 
-# Remove rows with missing critical fields
-critical_cols = ['timestamp','region','co2_g_per_kwh']
-df_ed = df_ed.dropna(subset=critical_cols)
-print(f"After removing missing critical fields: {len(df_ed)} rows")
 
-# Clip shares to [0,100] and coerce to numeric
-share_cols = ['gas_share_pct','hydro_share_pct','solar_share_pct','wind_share_pct']
-for c in share_cols:
-    df_ed[c] = pd.to_numeric(df_ed[c], errors='coerce').clip(lower=0, upper=100)
+def plot_categorical_plot(df):
+    """
+    Create a pie chart showing the overall average energy generation mix
+    across all regions.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Cleaned dataframe with energy data
+        
+    Returns
+    -------
+    None
+        Saves plot to 'categorical_plot.png'
+    """
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    # Define energy mix columns
+    mix_cols = ['gas_share_pct', 'hydro_share_pct',
+                'solar_share_pct', 'wind_share_pct']
+    
+    # Calculate overall average for each energy source
+    overall_mix = df[mix_cols].mean().clip(lower=0)
+    
+    # Create labels with better formatting
+    labels = ['Gas', 'Hydro', 'Solar', 'Wind']
+    
+    # Define colors for better visualization
+    colors = ['#ff9999', '#66b3ff', '#ffcc99', '#99ff99']
+    
+    # Create pie chart
+    wedges, texts, autotexts = ax.pie(
+        overall_mix.values,
+        labels=labels,
+        autopct='%1.1f%%',
+        startangle=140,
+        colors=colors,
+        explode=(0.05, 0, 0, 0),  # Slightly separate gas share
+        textprops={'fontsize': 11}
+    )
+    
+    # Make percentage text bold
+    for autotext in autotexts:
+        autotext.set_color('white')
+        autotext.set_fontweight('bold')
+    
+    ax.set_title('Overall Average Energy Generation Mix',
+                 fontsize=14, fontweight='bold', pad=20)
+    
+    plt.tight_layout()
+    plt.savefig('categorical_plot.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    return
 
-# Remove duplicates
-before_dups = len(df_ed)
-df_ed = df_ed.drop_duplicates()
-after_dups = len(df_ed)
-print(f"Duplicates removed: {before_dups - after_dups}")
 
-# Step 2: Feature Engineering
-print("Performing feature engineering...")
-df_ed['date'] = df_ed['timestamp'].dt.date
-df_ed['year'] = df_ed['timestamp'].dt.year
-df_ed['month'] = df_ed['timestamp'].dt.to_period('M').astype(str)
-df_ed['renewable_share_pct'] = df_ed[['hydro_share_pct','solar_share_pct','wind_share_pct']].sum(axis=1)
-df_ed['fossil_share_pct'] = df_ed['gas_share_pct']
+def plot_statistical_plot(df):
+    """
+    Create a correlation heatmap showing relationships between
+    CO2 intensity and energy generation shares.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Cleaned dataframe with energy data
+        
+    Returns
+    -------
+    None
+        Saves plot to 'statistical_plot.png'
+    """
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Select columns for correlation matrix
+    corr_cols = ['co2_g_per_kwh', 'gas_share_pct', 'hydro_share_pct',
+                 'solar_share_pct', 'wind_share_pct']
+    
+    # Calculate correlation matrix
+    corr_matrix = df[corr_cols].corr()
+    
+    # Create heatmap
+    sns.heatmap(
+        corr_matrix,
+        annot=True,
+        cmap='coolwarm',
+        vmin=-1,
+        vmax=1,
+        fmt='.2f',
+        square=True,
+        linewidths=0.5,
+        cbar_kws={'label': 'Correlation Coefficient'},
+        ax=ax
+    )
+    
+    ax.set_title('Correlation Heatmap: CO2 and Energy Generation Shares',
+                 fontsize=14, fontweight='bold', pad=20)
+    
+    plt.tight_layout()
+    plt.savefig('statistical_plot.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    return
 
-# Sanity check for total shares
-df_ed = df_ed[(df_ed['renewable_share_pct'] + df_ed['fossil_share_pct']).between(0, 120)]
-print(f"After sanity check: {len(df_ed)} rows")
 
-cleaned_df = df_ed.copy()  # Use cleaned data for analysis
+def statistical_analysis(df, col: str):
+    """
+    Calculate statistical moments for a specified column.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Cleaned dataframe with energy data
+    col : str
+        Column name to analyze
+        
+    Returns
+    -------
+    tuple
+        (mean, standard deviation, skewness, excess kurtosis)
+    """
+    data = df[col].dropna()
+    
+    mean = np.mean(data)
+    stddev = np.std(data, ddof=1)
+    skew = ss.skew(data)
+    excess_kurtosis = ss.kurtosis(data)
+    
+    return mean, stddev, skew, excess_kurtosis
 
-# Step 3: EDA - Exploratory Data Analysis
-print("\n" + "="*50)
-print("EXPLORATORY DATA ANALYSIS")
-print("="*50)
 
-print("\n--- Sample Data ---")
-print(cleaned_df.head(10))
+def preprocessing(df):
+    """
+    Preprocess the Nigerian energy dataset by cleaning and transforming data.
+    
+    Performs the following operations:
+    - Converts timestamp to datetime
+    - Removes rows with missing critical fields
+    - Clips share percentages to valid range [0, 100]
+    - Removes duplicates
+    - Creates derived features (renewable share, date components)
+    - Applies sanity checks on total energy shares
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Raw dataframe loaded from CSV
+        
+    Returns
+    -------
+    pandas.DataFrame
+        Cleaned and preprocessed dataframe
+    """
+    print("="*60)
+    print("PREPROCESSING")
+    print("="*60)
+    
+    # Create a copy to avoid modifying original
+    df_clean = df.copy()
+    
+    print(f"\nInitial dataset shape: {df_clean.shape}")
+    print("\n--- Initial Data Sample ---")
+    print(df_clean.head())
+    
+    # Convert timestamp to datetime
+    print("\nConverting timestamp to datetime...")
+    df_clean['timestamp'] = pd.to_datetime(df_clean['timestamp'],
+                                           errors='coerce')
+    
+    # Remove rows with missing critical fields
+    critical_cols = ['timestamp', 'region', 'co2_g_per_kwh']
+    before_drop = len(df_clean)
+    df_clean = df_clean.dropna(subset=critical_cols)
+    after_drop = len(df_clean)
+    print(f"Removed {before_drop - after_drop} rows with missing "
+          f"critical fields")
+    
+    # Clip share percentages to valid range
+    share_cols = ['gas_share_pct', 'hydro_share_pct',
+                  'solar_share_pct', 'wind_share_pct']
+    print("\nClipping share percentages to [0, 100] range...")
+    for col in share_cols:
+        df_clean[col] = pd.to_numeric(df_clean[col],
+                                      errors='coerce').clip(lower=0, upper=100)
+    
+    # Remove duplicates
+    before_dups = len(df_clean)
+    df_clean = df_clean.drop_duplicates()
+    after_dups = len(df_clean)
+    print(f"Removed {before_dups - after_dups} duplicate rows")
+    
+    # Feature Engineering
+    print("\nPerforming feature engineering...")
+    df_clean['date'] = df_clean['timestamp'].dt.date
+    df_clean['year'] = df_clean['timestamp'].dt.year
+    df_clean['month'] = df_clean['timestamp'].dt.to_period('M').astype(str)
+    
+    # Calculate renewable and fossil shares
+    df_clean['renewable_share_pct'] = df_clean[
+        ['hydro_share_pct', 'solar_share_pct', 'wind_share_pct']
+    ].sum(axis=1)
+    df_clean['fossil_share_pct'] = df_clean['gas_share_pct']
+    
+    # Sanity check: total shares should be between 0 and 120
+    total_share = (df_clean['renewable_share_pct'] +
+                   df_clean['fossil_share_pct'])
+    before_sanity = len(df_clean)
+    df_clean = df_clean[total_share.between(0, 120)]
+    after_sanity = len(df_clean)
+    print(f"Removed {before_sanity - after_sanity} rows failing "
+          f"sanity check")
+    
+    print(f"\nFinal dataset shape: {df_clean.shape}")
+    
+    # Display summary statistics
+    print("\n--- Summary Statistics ---")
+    summary_cols = ['co2_g_per_kwh'] + share_cols + ['renewable_share_pct']
+    print(df_clean[summary_cols].describe())
+    
+    # Display missing values
+    print("\n--- Missing Values (Top 10) ---")
+    missing = df_clean.isna().mean().sort_values(ascending=False).head(10)
+    print(missing)
+    
+    # Display correlation matrix
+    print("\n--- Correlation Matrix ---")
+    corr_cols = ['co2_g_per_kwh', 'gas_share_pct', 'hydro_share_pct',
+                 'solar_share_pct', 'wind_share_pct']
+    print(df_clean[corr_cols].corr())
+    
+    # Region-level aggregates
+    print("\n--- Region-level Aggregates ---")
+    region_agg = df_clean.groupby('region', as_index=False).agg(
+        avg_co2=('co2_g_per_kwh', 'mean'),
+        median_co2=('co2_g_per_kwh', 'median'),
+        n_observations=('co2_g_per_kwh', 'size')
+    )
+    print(region_agg)
+    
+    print("\nPreprocessing complete!")
+    print("="*60 + "\n")
+    
+    return df_clean
 
-print("\n--- Summary Statistics ---")
-desc_out = cleaned_df[['co2_g_per_kwh'] + share_cols + ['renewable_share_pct']].describe()
-print(desc_out)
 
-print("\n--- Missing Values ---")
-missing_out = cleaned_df.isna().mean().sort_values(ascending=False).head(10)
-print(missing_out)
+def writing(moments, col):
+    """
+    Write statistical analysis results in a formatted manner.
+    
+    Parameters
+    ----------
+    moments : tuple
+        Statistical moments (mean, stddev, skewness, excess kurtosis)
+    col : str
+        Column name that was analyzed
+        
+    Returns
+    -------
+    None
+        Prints formatted statistical summary
+    """
+    print("="*60)
+    print("STATISTICAL ANALYSIS RESULTS")
+    print("="*60)
+    print(f'\nFor the attribute "{col}":')
+    print(f'Mean = {moments[0]:.2f}, '
+          f'Standard Deviation = {moments[1]:.2f}, '
+          f'Skewness = {moments[2]:.2f}, and '
+          f'Excess Kurtosis = {moments[3]:.2f}.')
+    
+    # Interpret skewness
+    if moments[2] < -0.5:
+        skew_interp = "left skewed"
+    elif moments[2] > 0.5:
+        skew_interp = "right skewed"
+    else:
+        skew_interp = "not skewed"
+    
+    # Interpret kurtosis
+    if moments[3] < -1:
+        kurt_interp = "platykurtic"
+    elif moments[3] > 1:
+        kurt_interp = "leptokurtic"
+    else:
+        kurt_interp = "mesokurtic"
+    
+    print(f'The data was {skew_interp} and {kurt_interp}.')
+    print("="*60 + "\n")
+    
+    return
 
-print("\n--- Region-level Aggregates ---")
-region_agg = cleaned_df.groupby('region', as_index=False).agg(
-    avg_co2=('co2_g_per_kwh','mean'),
-    p50_co2=('co2_g_per_kwh','median'),
-    n_obs=('co2_g_per_kwh','size')
-)
-print(region_agg)
 
-# Step 4: Visualizations
-print("\n" + "="*50)
-print("VISUALIZATIONS")
-print("="*50)
+def main():
+    """
+    Main function to execute the complete analysis pipeline.
+    
+    Loads data, preprocesses it, creates visualizations,
+    and performs statistical analysis.
+    """
+    # Load the dataset
+    print("Loading Nigerian Energy Dataset...")
+    df = pd.read_csv('data.csv',
+                     encoding='ascii')
+    
+    # Preprocess the data
+    df = preprocessing(df)
+    
+    # Choose column for statistical analysis
+    col = 'co2_g_per_kwh'
+    
+    # Generate plots
+    print("Generating visualizations...")
+    plot_relational_plot(df)
+    print("✓ Line plot saved")
+    
+    plot_statistical_plot(df)
+    print("✓ Heatmap saved")
+    
+    plot_categorical_plot(df)
+    print("✓ Pie chart saved")
+    
+    # Perform statistical analysis
+    moments = statistical_analysis(df, col)
+    
+    # Write results
+    writing(moments, col)
+    
+    print("Analysis complete! All plots saved and statistics calculated.")
+    
+    return
 
-# Prepare data for plotting (raw data for some plots)
-df_plot = df_ng_energy.copy()
-df_plot = df_plot.sort_values('timestamp')
-df_plot['timestamp'] = pd.to_datetime(df_plot['timestamp'], errors='coerce')
 
-# 1) EDA Visual: Average CO2 by region (cleaned data)
-print("1. Average CO2 by region")
-plt.figure(figsize=(7,4))
-sns.barplot(data=region_agg.sort_values('avg_co2', ascending=False), x='region', y='avg_co2', color='#4e79a7')
-plt.title('Avg CO2 g/kWh by region (cleaned)')
-plt.xlabel('Region')
-plt.ylabel('Avg CO2 g/kWh')
-plt.xticks(rotation=20)
-plt.tight_layout()
-plt.show()
-
-# 2) Histogram of CO2 intensity
-print("2. Histogram of CO2 intensity")
-plt.figure(figsize=(7,4))
-sns.histplot(df_plot['co2_g_per_kwh'], bins=30, kde=True, color='#4e79a7')
-plt.title('Histogram of CO2 intensity (g/kWh)')
-plt.xlabel('CO2 g/kWh')
-plt.ylabel('Count')
-plt.tight_layout()
-plt.show()
-
-# 3) Bar chart: average CO2 by region (all data)
-print("3. Bar chart: Average CO2 by region")
-region_avg = df_plot.groupby('region', as_index=False)['co2_g_per_kwh'].mean()
-plt.figure(figsize=(7,4))
-sns.barplot(data=region_avg, x='region', y='co2_g_per_kwh', color='#59a14f')
-plt.title('Average CO2 intensity by region')
-plt.xlabel('Region')
-plt.ylabel('Avg CO2 g/kWh')
-plt.xticks(rotation=20)
-plt.tight_layout()
-plt.show()
-
-# 4) Pie chart: overall average generation mix
-print("4. Pie chart: Energy generation mix")
-mix_cols = ['gas_share_pct','hydro_share_pct','solar_share_pct','wind_share_pct']
-overall_mix = df_plot[mix_cols].mean().clip(lower=0)
-plt.figure(figsize=(5,5))
-plt.pie(overall_mix.values, labels=[c.replace('_',' ').title() for c in overall_mix.index], autopct='%1.1f%%', startangle=140)
-plt.title('Overall average generation mix')
-plt.tight_layout()
-plt.show()
-
-# 5) Line plot: CO2 over time (median by day)
-print("5. Line plot: CO2 over time")
-df_daily = df_plot.set_index('timestamp').resample('D')['co2_g_per_kwh'].median().dropna().reset_index()
-plt.figure(figsize=(8,4))
-sns.lineplot(data=df_daily, x='timestamp', y='co2_g_per_kwh', color='#e15759')
-plt.title('Daily median CO2 intensity over time')
-plt.xlabel('Date')
-plt.ylabel('CO2 g/kWh')
-plt.tight_layout()
-plt.show()
-
-# 6) Scatter plot: CO2 vs gas share
-print("6. Scatter plot: Gas share vs CO2 intensity")
-plt.figure(figsize=(7,4))
-sns.scatterplot(data=df_plot.sample(min(5000, len(df_plot)), random_state=42), x='gas_share_pct', y='co2_g_per_kwh', hue='region', alpha=0.6)
-plt.title('Scatter: Gas share vs CO2 intensity')
-plt.xlabel('Gas share (%)')
-plt.ylabel('CO2 g/kWh')
-plt.tight_layout()
-plt.show()
-
-# 7) Heatmap: correlation matrix
-print("7. Heatmap: Correlation matrix")
-corr_cols = ['co2_g_per_kwh','gas_share_pct','hydro_share_pct','solar_share_pct','wind_share_pct']
-corr = df_plot[corr_cols].corr(numeric_only=True)
-plt.figure(figsize=(6,5))
-sns.heatmap(corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1, fmt='.2f')
-plt.title('Correlation heatmap')
-plt.tight_layout()
-plt.show()
-
-# 8) Violin plot: CO2 by region
-print("8. Violin plot: CO2 intensity by region")
-plt.figure(figsize=(8,4))
-sns.violinplot(data=df_plot, x='region', y='co2_g_per_kwh', inner='box', scale='width')
-plt.title('Violin plot: CO2 intensity by region')
-plt.xlabel('Region')
-plt.ylabel('CO2 g/kWh')
-plt.xticks(rotation=20)
-plt.tight_layout()
-plt.show()
-
-print("\nAnalysis complete! All visualizations displayed.")
+if __name__ == '__main__':
+    main()

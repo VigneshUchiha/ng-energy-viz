@@ -1,5 +1,6 @@
-pandas>=2.0
-numpy
+corner
 matplotlib
+numpy
+pandas
+scipy
 seaborn
-openpyxl
