@@ -1,29 +1,14 @@
-"""
-Statistics and trends assignment for Nigerian Energy Dataset.
-Analyzes carbon footprint and energy generation data.
-PEP-8 compliant with complete documentation.
-"""
-from corner import corner
+# Stats project on Nigeria energy data
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.stats as ss
+import scipy.stats as stats
 import seaborn as sns
 
 
 def plot_relational_plot(df):
     """
     Create a line plot showing CO2 intensity trend over time.
-    
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Cleaned dataframe with energy data
-        
-    Returns
-    -------
-    None
-        Saves plot to 'relational_plot.png'
     """
     fig, ax = plt.subplots(figsize=(12, 6))
     
@@ -59,16 +44,6 @@ def plot_categorical_plot(df):
     """
     Create a pie chart showing the overall average energy generation mix
     across all regions.
-    
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Cleaned dataframe with energy data
-        
-    Returns
-    -------
-    None
-        Saves plot to 'categorical_plot.png'
     """
     fig, ax = plt.subplots(figsize=(8, 8))
     
@@ -86,20 +61,15 @@ def plot_categorical_plot(df):
     colors = ['#ff9999', '#66b3ff', '#ffcc99', '#99ff99']
     
     # Create pie chart
-    wedges, texts, autotexts = ax.pie(
+    ax.pie(
         overall_mix.values,
         labels=labels,
         autopct='%1.1f%%',
         startangle=140,
         colors=colors,
-        explode=(0.05, 0, 0, 0),  # Slightly separate gas share
+        explode=(0.05, 0, 0, 0),
         textprops={'fontsize': 11}
     )
-    
-    # Make percentage text bold
-    for autotext in autotexts:
-        autotext.set_color('white')
-        autotext.set_fontweight('bold')
     
     ax.set_title('Overall Average Energy Generation Mix',
                  fontsize=14, fontweight='bold', pad=20)
@@ -177,34 +147,13 @@ def statistical_analysis(df, col: str):
     
     mean = np.mean(data)
     stddev = np.std(data, ddof=1)
-    skew = ss.skew(data)
-    excess_kurtosis = ss.kurtosis(data)
+    skew = stats.skew(data)
+    excess_kurtosis = stats.kurtosis(data)
     
     return mean, stddev, skew, excess_kurtosis
 
 
 def preprocessing(df):
-    """
-    Preprocess the Nigerian energy dataset by cleaning and transforming data.
-    
-    Performs the following operations:
-    - Converts timestamp to datetime
-    - Removes rows with missing critical fields
-    - Clips share percentages to valid range [0, 100]
-    - Removes duplicates
-    - Creates derived features (renewable share, date components)
-    - Applies sanity checks on total energy shares
-    
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Raw dataframe loaded from CSV
-        
-    Returns
-    -------
-    pandas.DataFrame
-        Cleaned and preprocessed dataframe
-    """
     print("="*60)
     print("PREPROCESSING")
     print("="*60)
@@ -298,21 +247,6 @@ def preprocessing(df):
 
 
 def writing(moments, col):
-    """
-    Write statistical analysis results in a formatted manner.
-    
-    Parameters
-    ----------
-    moments : tuple
-        Statistical moments (mean, stddev, skewness, excess kurtosis)
-    col : str
-        Column name that was analyzed
-        
-    Returns
-    -------
-    None
-        Prints formatted statistical summary
-    """
     print("="*60)
     print("STATISTICAL ANALYSIS RESULTS")
     print("="*60)
@@ -345,12 +279,6 @@ def writing(moments, col):
 
 
 def main():
-    """
-    Main function to execute the complete analysis pipeline.
-    
-    Loads data, preprocesses it, creates visualizations,
-    and performs statistical analysis.
-    """
     # Load the dataset
     print("Loading Nigerian Energy Dataset...")
     df = pd.read_csv('data.csv',
